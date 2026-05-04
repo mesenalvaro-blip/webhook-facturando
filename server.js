@@ -221,6 +221,51 @@ app.post('/webhook-facturando', async (req, res) => {
   }
 });
 
+// Manually trigger processing for an invoice by number, e.g.:
+//   POST /trigger  { "numero": "INV/2026/00060" }
+app.post('/trigger', async (req, res) => {
+  const { numero } = req.body || {};
+  if (!numero) return res.status(400).json({ error: 'Provide { "numero": "INV/2026/XXXXX" }' });
+
+  try {
+    const uid = await getOdooUid();
+    const searchRes = await axios.post(`${ODOO_URL}/jsonrpc`, {
+      jsonrpc: '2.0', method: 'call', id: 1,
+      params: {
+        service: 'object', method: 'execute_kw',
+        args: [ODOO_DB, uid, ODOO_PASSWORD, 'account.move', 'search_read',
+          [[['name', '=', numero], ['move_type', '=', 'out_invoice']]],
+          { fields: ['id', 'name', 'state'], limit: 1 }
+        ],
+      },
+    });
+
+    if (searchRes.data.error) throw new Error(JSON.stringify(searchRes.data.error));
+    const results = searchRes.data.result;
+    if (!results || results.length === 0) return res.status(404).json({ error: `Invoice ${numero} not found in Odoo` });
+
+    const move = results[0];
+    // Reuse the main webhook handler by doing an internal POST-style call
+    const fakePayload = {
+      id: move.id,
+      _id: move.id,
+      move_type: 'out_invoice',
+      state: move.state,
+    };
+
+    // Forward to our own webhook handler logic directly
+    const webhookRes = await axios.post(
+      `http://localhost:${process.env.PORT || 3000}/webhook-facturando`,
+      fakePayload,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    return res.json({ triggered: numero, move_id: move.id, result: webhookRes.data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Shows the last 20 requests — useful for diagnosing Odoo webhook issues
 app.get('/debug', (_req, res) => res.json(recentRequests));
 
