@@ -209,7 +209,7 @@ app.post('/webhook-facturando', async (req, res) => {
       numero_factura: invoiceNumber,
       lines: lines.map((line) => {
         const productId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
-        const cabys = line.l10n_cr_cabys_code || cabysMap[productId] || '';
+        const cabys = line.l10n_cr_cabys_code || cabysMap[productId] || '0000000000000';
         return ({
         description: line.name,
         quantity: line.quantity,
@@ -289,6 +289,29 @@ app.post('/trigger', async (req, res) => {
     );
 
     return res.json({ triggered: numero, move_id: move.id, result: webhookRes.data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Returns all fields on a model that contain a keyword — e.g. /odoo-fields?model=product.template&q=cabys
+app.get('/odoo-fields', async (req, res) => {
+  const model = req.query.model || 'product.template';
+  const q = (req.query.q || 'cabys').toLowerCase();
+  try {
+    const uid = await getOdooUid();
+    const r = await axios.post(`${ODOO_URL}/jsonrpc`, {
+      jsonrpc: '2.0', method: 'call', id: 1,
+      params: {
+        service: 'object', method: 'execute_kw',
+        args: [ODOO_DB, uid, ODOO_PASSWORD, model, 'fields_get', [], { attributes: ['string', 'type'] }],
+      },
+    });
+    if (r.data.error) throw new Error(JSON.stringify(r.data.error));
+    const matches = Object.entries(r.data.result)
+      .filter(([k, v]) => k.toLowerCase().includes(q) || (v.string || '').toLowerCase().includes(q))
+      .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+    return res.json({ model, query: q, matches });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
