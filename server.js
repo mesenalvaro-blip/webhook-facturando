@@ -159,13 +159,14 @@ app.post('/webhook-facturando', async (req, res) => {
       id: l.id, display_type: l.display_type, quantity: l.quantity, name: l.name
     }))));
 
-    // Skip explicit section/note lines; keep everything else (including lines where
-    // display_type is false, null, "" or any value other than the known skip types)
+    // Skip section/note lines and lines with no description (e.g. price-0 placeholder rows)
     const SKIP_TYPES = ['line_section', 'line_note'];
-    const lines = allLines.filter((l) => !SKIP_TYPES.includes(l.display_type));
+    const lines = allLines.filter(
+      (l) => !SKIP_TYPES.includes(l.display_type) && l.name && l.name.trim() !== ''
+    );
 
     if (lines.length === 0) {
-      throw new Error(`Move ${moveId}: all ${allLines.length} line(s) are section/note — display_types: ${JSON.stringify(allLines.map(l => l.display_type))}`);
+      throw new Error(`Move ${moveId}: no valid product lines found (${allLines.length} total, all are section/note or have no description)`);
     }
 
     // 5. Resolve taxes
