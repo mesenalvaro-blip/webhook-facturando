@@ -148,16 +148,12 @@ app.post('/webhook-facturando', async (req, res) => {
       if (rows.length) moneda = rows[0].name;
     }
 
-    // 4. Read invoice lines — include display_type to filter out section/note rows
+    // 4. Read invoice lines — also fetch product_id so we can look up CABYS from the product
     const allLines = await odooReadSafe(
       'account.move.line', lineIds,
-      ['name', 'quantity', 'price_unit', 'tax_ids', 'display_type'],
+      ['name', 'quantity', 'price_unit', 'tax_ids', 'display_type', 'product_id'],
       ['l10n_cr_cabys_code']
     );
-
-    console.log('[webhook] raw lines:', JSON.stringify(allLines.map(l => ({
-      id: l.id, display_type: l.display_type, quantity: l.quantity, name: l.name
-    }))));
 
     // Skip section/note lines and lines with no description (e.g. price-0 placeholder rows)
     const SKIP_TYPES = ['line_section', 'line_note'];
@@ -177,6 +173,33 @@ app.post('/webhook-facturando', async (req, res) => {
       taxes.forEach((t) => { taxMap[t.id] = t.amount; });
     }
 
+    // 5b. Resolve CABYS from product.product when not on the line itself
+    const cabysMap = {};
+    const linesNeedingCabys = lines.filter((l) => !l.l10n_cr_cabys_code && l.product_id);
+    if (linesNeedingCabys.length > 0) {
+      const productIds = [...new Set(linesNeedingCabys.map((l) =>
+        Array.isArray(l.product_id) ? l.product_id[0] : l.product_id
+      ))];
+      const products = await odooReadSafe(
+        'product.product', productIds,
+        [],
+        ['l10n_cr_cabys_code']
+      );
+      products.forEach((p) => { if (p.l10n_cr_cabys_code) cabysMap[p.id] = p.l10n_cr_cabys_code; });
+
+      // If still not found, try product.template
+      const stillMissing = productIds.filter((id) => !cabysMap[id]);
+      if (stillMissing.length > 0) {
+        const templates = await odooReadSafe(
+          'product.template', stillMissing,
+          [],
+          ['l10n_cr_cabys_code']
+        );
+        templates.forEach((t) => { if (t.l10n_cr_cabys_code) cabysMap[t.id] = t.l10n_cr_cabys_code; });
+      }
+    }
+    console.log('[webhook] cabysMap:', JSON.stringify(cabysMap));
+
     // 6. Build FacturAndo payload
     const facturandoPayload = {
       customer_name: partner.name,
@@ -184,16 +207,20 @@ app.post('/webhook-facturando', async (req, res) => {
       cliente_cedula: (partner.vat || '').replace(/\D/g, ''),
       moneda,
       numero_factura: invoiceNumber,
-      lines: lines.map((line) => ({
+      lines: lines.map((line) => {
+        const productId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+        const cabys = line.l10n_cr_cabys_code || cabysMap[productId] || '';
+        return ({
         description: line.name,
         quantity: line.quantity,
         unit_price: line.price_unit,
-        cabys_code: line.l10n_cr_cabys_code || '0000000000000',
+        cabys_code: cabys,
         tasa_impuestos:
           line.tax_ids && line.tax_ids.length > 0
             ? taxMap[line.tax_ids[0]] ?? 13
             : 0,
-      })),
+        });
+      }),
     };
 
     console.log('[webhook] sending to FacturAndo:', JSON.stringify(facturandoPayload));
