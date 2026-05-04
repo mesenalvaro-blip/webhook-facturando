@@ -291,6 +291,50 @@ app.post('/trigger', async (req, res) => {
   }
 });
 
+// Set CABYS code on a product by its internal reference
+//   POST /set-cabys  { "referencia": "HV-SP-003", "cabys": "2392100000100" }
+//   POST /set-cabys  { "productos": [{ "referencia": "HV-SP-003", "cabys": "..." }, ...] }
+app.post('/set-cabys', async (req, res) => {
+  try {
+    const uid = await getOdooUid();
+    const items = req.body.productos || (req.body.referencia ? [req.body] : []);
+    if (!items.length) return res.status(400).json({ error: 'Provide referencia+cabys or productos array' });
+
+    const results = [];
+    for (const { referencia, cabys } of items) {
+      // Find template by default_code (internal reference)
+      const searchRes = await axios.post(`${ODOO_URL}/jsonrpc`, {
+        jsonrpc: '2.0', method: 'call', id: 1,
+        params: {
+          service: 'object', method: 'execute_kw',
+          args: [ODOO_DB, uid, ODOO_PASSWORD, 'product.template', 'search_read',
+            [[['default_code', '=', referencia]]],
+            { fields: ['id', 'name', 'default_code'], limit: 1 }
+          ],
+        },
+      });
+      const found = searchRes.data.result;
+      if (!found || !found.length) { results.push({ referencia, error: 'not found' }); continue; }
+
+      const tmplId = found[0].id;
+      const writeRes = await axios.post(`${ODOO_URL}/jsonrpc`, {
+        jsonrpc: '2.0', method: 'call', id: 1,
+        params: {
+          service: 'object', method: 'execute_kw',
+          args: [ODOO_DB, uid, ODOO_PASSWORD, 'product.template', 'write',
+            [[tmplId], { x_cabys_code: cabys }]
+          ],
+        },
+      });
+      if (writeRes.data.error) throw new Error(JSON.stringify(writeRes.data.error));
+      results.push({ referencia, producto: found[0].name, cabys, ok: true });
+    }
+    return res.json({ results });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Returns all fields on a model that contain a keyword — e.g. /odoo-fields?model=product.template&q=cabys
 app.get('/odoo-fields', async (req, res) => {
   const model = req.query.model || 'product.template';
