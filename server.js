@@ -185,10 +185,11 @@ app.post('/webhook-facturando', async (req, res) => {
       const tmplIds = [...new Set(products.map((p) =>
         Array.isArray(p.product_tmpl_id) ? p.product_tmpl_id[0] : p.product_tmpl_id
       ))];
-      const templates = await odooReadSafe('product.template', tmplIds, [], ['x_cabys_code', 'l10n_cr_cabys_code']);
+      // x_cabys_code = custom CABYS field; hs_code = "Código SA" (used as fallback)
+      const templates = await odooReadSafe('product.template', tmplIds, ['hs_code'], ['x_cabys_code', 'l10n_cr_cabys_code']);
       const tmplMap = {};
       templates.forEach((t) => {
-        tmplMap[t.id] = t.x_cabys_code || t.l10n_cr_cabys_code || '';
+        tmplMap[t.id] = t.x_cabys_code || t.l10n_cr_cabys_code || t.hs_code || '';
       });
       products.forEach((p) => {
         const tmplId = Array.isArray(p.product_tmpl_id) ? p.product_tmpl_id[0] : p.product_tmpl_id;
