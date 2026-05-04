@@ -193,9 +193,12 @@ app.post('/webhook-facturando', async (req, res) => {
     return res.json({ ok: true, facturando: facturandoRes.data });
   } catch (err) {
     console.error('[webhook] error:', err.message);
-    // Reset cached UID on auth errors so next request re-authenticates
+    if (err.response) {
+      console.error('[webhook] upstream response:', err.response.status, JSON.stringify(err.response.data));
+    }
     if (err.message.includes('authentication')) cachedUid = null;
-    return res.status(500).json({ ok: false, error: err.message });
+    const detail = err.response ? { status: err.response.status, body: err.response.data } : null;
+    return res.status(500).json({ ok: false, error: err.message, upstream: detail });
   }
 });
 
