@@ -233,7 +233,7 @@ app.post('/webhook-facturando', async (req, res) => {
 
     console.log('[webhook] FacturAndo response:', facturandoRes.status, JSON.stringify(facturandoRes.data));
 
-    logRequest({ moveId, invoiceNumber, result: 'ok', facturando: facturandoRes.data });
+    logRequest({ moveId, invoiceNumber, result: 'ok', sent: facturandoPayload, facturando: facturandoRes.data });
     return res.json({ ok: true, facturando: facturandoRes.data });
 
   } catch (err) {
