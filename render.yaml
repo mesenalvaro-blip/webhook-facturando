@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: odoo-facturando-webhook
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: ODOO_URL
+        value: https://happy-value-costa-rica.odoo.com
+      - key: ODOO_DB
+        sync: false          # se completa manualmente en el dashboard de Render
+      - key: ODOO_USER
+        sync: false
+      - key: ODOO_PASSWORD
+        sync: false
