@@ -161,18 +161,19 @@ app.post('/webhook-facturando', async (req, res) => {
       });
     }
 
-    // 6. Build FacturAndo payload
+    // 6. Build FacturAndo payload (field names verified against the live API)
     const facturandoPayload = {
-      cliente_nombre: partner.name,
+      customer_name: partner.name,
       cliente_tipo_id: partner.l10n_cr_identification_type || '02',
       cliente_cedula: (partner.vat || '').replace(/\D/g, ''),
       moneda,
       numero_factura: invoiceNumber,
-      lineas: lines.map((line) => ({
-        descripcion: line.name,
-        cantidad: line.quantity,
+      lines: lines.map((line) => ({
+        description: line.name,
+        quantity: line.quantity,
         unit_price: line.price_unit,
-        cabys_code: line.l10n_cr_cabys_code || '',
+        // cabys_code is required by FacturAndo; use placeholder when CR localisation is absent
+        cabys_code: line.l10n_cr_cabys_code || '0000000000000',
         tasa_impuestos:
           line.tax_ids && line.tax_ids.length > 0
             ? taxMap[line.tax_ids[0]] ?? 13
