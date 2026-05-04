@@ -155,11 +155,17 @@ app.post('/webhook-facturando', async (req, res) => {
       ['l10n_cr_cabys_code']
     );
 
-    // Only keep actual product lines (display_type is false/empty for product lines)
-    const lines = allLines.filter((l) => !l.display_type);
+    console.log('[webhook] raw lines:', JSON.stringify(allLines.map(l => ({
+      id: l.id, display_type: l.display_type, quantity: l.quantity, name: l.name
+    }))));
+
+    // Skip explicit section/note lines; keep everything else (including lines where
+    // display_type is false, null, "" or any value other than the known skip types)
+    const SKIP_TYPES = ['line_section', 'line_note'];
+    const lines = allLines.filter((l) => !SKIP_TYPES.includes(l.display_type));
 
     if (lines.length === 0) {
-      throw new Error(`Move ${moveId} has no product lines (all lines are section/note or empty)`);
+      throw new Error(`Move ${moveId}: all ${allLines.length} line(s) are section/note — display_types: ${JSON.stringify(allLines.map(l => l.display_type))}`);
     }
 
     // 5. Resolve taxes
