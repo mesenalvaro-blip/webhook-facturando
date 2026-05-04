@@ -336,6 +336,35 @@ app.post('/set-cabys', async (req, res) => {
   }
 });
 
+// Read all field values of a product by internal reference — /product-data?ref=HV-SP-003
+app.get('/product-data', async (req, res) => {
+  const ref = req.query.ref;
+  if (!ref) return res.status(400).json({ error: 'Provide ?ref=HV-SP-003' });
+  try {
+    const uid = await getOdooUid();
+    const r = await axios.post(`${ODOO_URL}/jsonrpc`, {
+      jsonrpc: '2.0', method: 'call', id: 1,
+      params: {
+        service: 'object', method: 'execute_kw',
+        args: [ODOO_DB, uid, ODOO_PASSWORD, 'product.template', 'search_read',
+          [[['default_code', '=', ref]]],
+          { limit: 1 }
+        ],
+      },
+    });
+    if (r.data.error) throw new Error(JSON.stringify(r.data.error));
+    const product = r.data.result?.[0];
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    // Return only non-false scalar values to keep it readable
+    const filtered = Object.fromEntries(
+      Object.entries(product).filter(([, v]) => v !== false && v !== null && v !== '')
+    );
+    return res.json(filtered);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Returns all fields on a model that contain a keyword — e.g. /odoo-fields?model=product.template&q=cabys
 app.get('/odoo-fields', async (req, res) => {
   const model = req.query.model || 'product.template';
