@@ -173,30 +173,27 @@ app.post('/webhook-facturando', async (req, res) => {
       taxes.forEach((t) => { taxMap[t.id] = t.amount; });
     }
 
-    // 5b. Resolve CABYS from product.product when not on the line itself
+    // 5b. Resolve CABYS from product.template (field x_cabys_code in this Odoo instance)
     const cabysMap = {};
-    const linesNeedingCabys = lines.filter((l) => !l.l10n_cr_cabys_code && l.product_id);
-    if (linesNeedingCabys.length > 0) {
-      const productIds = [...new Set(linesNeedingCabys.map((l) =>
+    const linesWithProduct = lines.filter((l) => l.product_id);
+    if (linesWithProduct.length > 0) {
+      const productIds = [...new Set(linesWithProduct.map((l) =>
         Array.isArray(l.product_id) ? l.product_id[0] : l.product_id
       ))];
-      const products = await odooReadSafe(
-        'product.product', productIds,
-        [],
-        ['l10n_cr_cabys_code']
-      );
-      products.forEach((p) => { if (p.l10n_cr_cabys_code) cabysMap[p.id] = p.l10n_cr_cabys_code; });
-
-      // If still not found, try product.template
-      const stillMissing = productIds.filter((id) => !cabysMap[id]);
-      if (stillMissing.length > 0) {
-        const templates = await odooReadSafe(
-          'product.template', stillMissing,
-          [],
-          ['l10n_cr_cabys_code']
-        );
-        templates.forEach((t) => { if (t.l10n_cr_cabys_code) cabysMap[t.id] = t.l10n_cr_cabys_code; });
-      }
+      // product.product has product_tmpl_id pointing to the template
+      const products = await odooRead('product.product', productIds, ['product_tmpl_id']);
+      const tmplIds = [...new Set(products.map((p) =>
+        Array.isArray(p.product_tmpl_id) ? p.product_tmpl_id[0] : p.product_tmpl_id
+      ))];
+      const templates = await odooReadSafe('product.template', tmplIds, [], ['x_cabys_code', 'l10n_cr_cabys_code']);
+      const tmplMap = {};
+      templates.forEach((t) => {
+        tmplMap[t.id] = t.x_cabys_code || t.l10n_cr_cabys_code || '';
+      });
+      products.forEach((p) => {
+        const tmplId = Array.isArray(p.product_tmpl_id) ? p.product_tmpl_id[0] : p.product_tmpl_id;
+        if (tmplMap[tmplId]) cabysMap[p.id] = tmplMap[tmplId];
+      });
     }
     console.log('[webhook] cabysMap:', JSON.stringify(cabysMap));
 
