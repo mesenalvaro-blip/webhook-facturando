@@ -62,6 +62,20 @@ async function odooRead(model, ids, fields) {
   return res.data.result;
 }
 
+// Like odooRead but silently drops fields that Odoo rejects as invalid.
+// Useful for optional localisation fields (l10n_cr_*) that may not be installed.
+async function odooReadSafe(model, ids, requiredFields, optionalFields = []) {
+  if (!ids || ids.length === 0) return [];
+
+  try {
+    return await odooRead(model, ids, [...requiredFields, ...optionalFields]);
+  } catch (err) {
+    if (!optionalFields.length || !err.message.includes('Invalid field')) throw err;
+    console.warn(`[odoo] optional fields not available on ${model}, retrying without them`);
+    return await odooRead(model, ids, requiredFields);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main webhook endpoint
 // ---------------------------------------------------------------------------
@@ -110,14 +124,15 @@ app.post('/webhook-facturando', async (req, res) => {
         ? payload.invoice_line_ids
         : move.invoice_line_ids;
 
-    // 2. Read partner details
+    // 2. Read partner details — l10n_cr_identification_type is optional (requires CR localisation)
     let partner = { name: 'Sin nombre', vat: '', l10n_cr_identification_type: '02' };
     if (partnerId) {
-      const rows = await odooRead('res.partner', [partnerId], [
-        'name',
-        'vat',
-        'l10n_cr_identification_type',
-      ]);
+      const rows = await odooReadSafe(
+        'res.partner',
+        [partnerId],
+        ['name', 'vat'],
+        ['l10n_cr_identification_type']
+      );
       if (rows.length) partner = rows[0];
     }
 
@@ -128,14 +143,13 @@ app.post('/webhook-facturando', async (req, res) => {
       if (rows.length) moneda = rows[0].name;
     }
 
-    // 4. Read invoice lines
-    const lines = await odooRead('account.move.line', lineIds, [
-      'name',
-      'quantity',
-      'price_unit',
-      'l10n_cr_cabys_code',
-      'tax_ids',
-    ]);
+    // 4. Read invoice lines — l10n_cr_cabys_code is optional (requires CR localisation)
+    const lines = await odooReadSafe(
+      'account.move.line',
+      lineIds,
+      ['name', 'quantity', 'price_unit', 'tax_ids'],
+      ['l10n_cr_cabys_code']
+    );
 
     // 5. Resolve taxes — build a map { taxId -> amount% }
     const allTaxIds = [...new Set(lines.flatMap((l) => l.tax_ids || []))];
