@@ -86,6 +86,7 @@ class SegmentResponse(BaseModel):
     carbs_hora: float
     grasas_hora: float
     proteinas_hora: float
+    ingesta_carbs_hora: float
     hidratacion_hora: float
     zona_fc: str
     hrr_pct: float
@@ -177,6 +178,7 @@ async def segment(req: SegmentRequest):
         carbs_hora            = out.carbs_hora,
         grasas_hora           = out.grasas_hora,
         proteinas_hora        = out.proteinas_hora,
+        ingesta_carbs_hora    = out.ingesta_carbs_hora,
         hidratacion_hora      = out.hidratacion_hora,
         zona_fc               = out.zona_fc,
         hrr_pct               = out.hrr_pct,

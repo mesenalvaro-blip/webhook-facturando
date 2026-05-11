@@ -104,9 +104,10 @@ class SegmentOutput:
     factor_clima: float
     calorias_km: float           # kcal per km
     calorias_hora: float         # kcal per hour at adjusted pace
-    carbs_hora: float            # g carbs/hour
+    carbs_hora: float            # g carbs oxidised/hour (from glycogen + intake)
     grasas_hora: float           # g fat/hour
     proteinas_hora: float        # g protein/hour
+    ingesta_carbs_hora: float    # g carbs recommended to EAT/hour (gut-limited)
     hidratacion_hora: float      # ml fluid/hour
     zona_fc: str
     hrr_pct: float               # % heart-rate reserve
@@ -244,6 +245,25 @@ def macros_per_hour(zona_fc: str, kcal_per_km: float, pace_s_km: float) -> tuple
     return carbs_g, fat_g, protein_g, round(kcal_hour, 1)
 
 
+def recommended_carb_intake(carbs_oxidized: float, hrr_pct: float) -> float:
+    """
+    Carbs recommended to actually EAT per hour during exercise.
+    Capped by gut absorption limits (Burke & Jeukendrup):
+      - Single transporter (glucose only): ~60 g/h
+      - Dual transporter (glucose + fructose 2:1): ~90 g/h
+    Below 50% HRR glycogen stores are sufficient — no intake needed.
+    Returns 0–90 g/h.
+    """
+    if hrr_pct < 0.50:
+        return 0.0
+    elif hrr_pct < 0.60:
+        return round(min(carbs_oxidized, 30.0), 1)   # Zone 2: up to 30 g/h
+    elif hrr_pct < 0.75:
+        return round(min(carbs_oxidized, 60.0), 1)   # Zone 3: up to 60 g/h
+    else:
+        return round(min(carbs_oxidized, 90.0), 1)   # Zone 4+: up to 90 g/h
+
+
 def hydration_per_hour(
     peso_kg: float,
     temp_c: float,
@@ -298,6 +318,7 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
     zona = hr_zone(hrr)
     kcal = calories_per_km(inp.peso_kg, v_ajustada, grade, factor_combinado)
     carbs, fat, protein, kcal_hora = macros_per_hour(zona, kcal, pace_ajustado)
+    ingesta_carbs = recommended_carb_intake(carbs, hrr)
     hidra = hydration_per_hour(inp.peso_kg, inp.weather.apparent_temp_c, hrr)
 
     return SegmentOutput(
@@ -313,6 +334,7 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
         carbs_hora             = carbs,
         grasas_hora            = fat,
         proteinas_hora         = protein,
+        ingesta_carbs_hora     = ingesta_carbs,
         hidratacion_hora       = hidra,
         zona_fc                = zona,
         hrr_pct                = round(hrr * 100, 1),
