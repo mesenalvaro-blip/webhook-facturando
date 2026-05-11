@@ -5,8 +5,8 @@ Models used:
   - Karvonen (HRR) for heart-rate zones
   - Minetti (2002) grade-cost coefficients for slope penalty
   - Pandolf (1977) terrain coefficients for surface penalty
-  - Bröckner caloric expenditure via VO2 estimation
-  - Jeukendrup carbohydrate oxidation by zone
+  - Broeckner caloric expenditure via VO2 estimation
+  - Jeukendrup macro oxidation by zone (carbs, fat, protein)
   - Sawka sweat-rate model for hydration
 """
 
@@ -21,23 +21,29 @@ import math
 # ---------------------------------------------------------------------------
 
 ZONE_THRESHOLDS = [
-    (0.50, "Zona 1 – Recuperación"),
-    (0.60, "Zona 2 – Base aeróbica"),
-    (0.70, "Zona 3 – Tempo"),
-    (0.80, "Zona 4 – Umbral"),
-    (0.90, "Zona 5 – VO2max"),
-    (1.01, "Zona 6 – Anaeróbico"),
+    (0.50, "Zona 1 - Recuperacion"),
+    (0.60, "Zona 2 - Base aerobica"),
+    (0.70, "Zona 3 - Tempo"),
+    (0.80, "Zona 4 - Umbral"),
+    (0.90, "Zona 5 - VO2max"),
+    (1.01, "Zona 6 - Anaerobico"),
 ]
 
-# Caloric proportion from carbs by zone (0-1)
-CARB_FRACTION_BY_ZONE = {
-    "Zona 1 – Recuperación":   0.35,
-    "Zona 2 – Base aeróbica":  0.50,
-    "Zona 3 – Tempo":          0.65,
-    "Zona 4 – Umbral":         0.80,
-    "Zona 5 – VO2max":         0.90,
-    "Zona 6 – Anaeróbico":     0.95,
+# Macro fractions by zone (must sum to 1.0 per zone)
+# Based on Jeukendrup fat/carb crossover + ~5% protein across all zones
+# Carbs: 4 kcal/g  |  Fat: 9 kcal/g  |  Protein: 4 kcal/g
+MACRO_FRACTIONS_BY_ZONE = {
+    #                          carbs   fat    protein
+    "Zona 1 - Recuperacion":  (0.30,  0.65,  0.05),
+    "Zona 2 - Base aerobica": (0.45,  0.50,  0.05),
+    "Zona 3 - Tempo":         (0.60,  0.35,  0.05),
+    "Zona 4 - Umbral":        (0.75,  0.20,  0.05),
+    "Zona 5 - VO2max":        (0.87,  0.08,  0.05),
+    "Zona 6 - Anaerobico":    (0.92,  0.03,  0.05),
 }
+
+# Legacy carb fraction kept for internal use
+CARB_FRACTION_BY_ZONE = {z: v[0] for z, v in MACRO_FRACTIONS_BY_ZONE.items()}
 
 # Surface multipliers (Pandolf terrain coefficients normalised to flat road)
 SURFACE_FACTORS = {
@@ -97,7 +103,10 @@ class SegmentOutput:
     factor_superficie: float
     factor_clima: float
     calorias_km: float           # kcal per km
-    carbs_hora: float            # g carbs/hour at adjusted pace
+    calorias_hora: float         # kcal per hour at adjusted pace
+    carbs_hora: float            # g carbs/hour
+    grasas_hora: float           # g fat/hour
+    proteinas_hora: float        # g protein/hour
     hidratacion_hora: float      # ml fluid/hour
     zona_fc: str
     hrr_pct: float               # % heart-rate reserve
@@ -218,13 +227,18 @@ def calories_per_km(
     return round(kcal_per_km * factor_combinado, 1)
 
 
-def carbs_per_hour(zona_fc: str, kcal_per_km: float, pace_s_km: float) -> float:
-    """g carbs/hour based on zone and pace."""
-    frac = CARB_FRACTION_BY_ZONE.get(zona_fc, 0.60)
+def macros_per_hour(zona_fc: str, kcal_per_km: float, pace_s_km: float) -> tuple:
+    """
+    Returns (carbs_g, fat_g, protein_g, kcal_total) per hour.
+    Carbs: 4 kcal/g | Fat: 9 kcal/g | Protein: 4 kcal/g
+    """
+    fracs = MACRO_FRACTIONS_BY_ZONE.get(zona_fc, (0.60, 0.35, 0.05))
     km_per_hour = 3600 / pace_s_km
-    kcal_per_hour = kcal_per_km * km_per_hour
-    carb_kcal = kcal_per_hour * frac
-    return round(carb_kcal / 4.0, 1)   # 4 kcal/g carbs
+    kcal_hour = kcal_per_km * km_per_hour
+    carbs_g   = round(kcal_hour * fracs[0] / 4.0, 1)
+    fat_g     = round(kcal_hour * fracs[1] / 9.0, 1)
+    protein_g = round(kcal_hour * fracs[2] / 4.0, 1)
+    return carbs_g, fat_g, protein_g, round(kcal_hour, 1)
 
 
 def hydration_per_hour(
@@ -279,7 +293,7 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
     hrr = hrr_percent(inp.fc_actual, inp.fc_max, inp.fc_reposo)
     zona = hr_zone(hrr)
     kcal = calories_per_km(inp.peso_kg, v_ajustada, grade, factor_combinado)
-    carbs = carbs_per_hour(zona, kcal, pace_ajustado)
+    carbs, fat, protein, kcal_hora = macros_per_hour(zona, kcal, pace_ajustado)
     hidra = hydration_per_hour(inp.peso_kg, inp.weather.apparent_temp_c, hrr)
 
     return SegmentOutput(
@@ -291,7 +305,10 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
         factor_superficie      = round(f_superficie, 4),
         factor_clima           = round(f_clima, 4),
         calorias_km            = kcal,
+        calorias_hora          = kcal_hora,
         carbs_hora             = carbs,
+        grasas_hora            = fat,
+        proteinas_hora         = protein,
         hidratacion_hora       = hidra,
         zona_fc                = zona,
         hrr_pct                = round(hrr * 100, 1),

@@ -77,7 +77,10 @@ class SegmentResponse(BaseModel):
     factor_superficie: float
     factor_clima: float
     calorias_km: float
+    calorias_hora: float
     carbs_hora: float
+    grasas_hora: float
+    proteinas_hora: float
     hidratacion_hora: float
     zona_fc: str
     hrr_pct: float
@@ -165,7 +168,10 @@ async def segment(req: SegmentRequest):
         factor_superficie     = out.factor_superficie,
         factor_clima          = out.factor_clima,
         calorias_km           = out.calorias_km,
+        calorias_hora         = out.calorias_hora,
         carbs_hora            = out.carbs_hora,
+        grasas_hora           = out.grasas_hora,
+        proteinas_hora        = out.proteinas_hora,
         hidratacion_hora      = out.hidratacion_hora,
         zona_fc               = out.zona_fc,
         hrr_pct               = out.hrr_pct,
