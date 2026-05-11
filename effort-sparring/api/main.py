@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from engine.pace_engine import (
@@ -36,6 +37,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Serve the mobile app at /app
+_app_dir = os.path.join(os.path.dirname(__file__), "..", "app")
+app.mount("/app", StaticFiles(directory=_app_dir, html=True), name="app")
 
 
 # ---------------------------------------------------------------------------

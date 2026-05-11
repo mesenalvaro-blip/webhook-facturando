@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Effort Sparring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080808;
+    --bg2:       #111111;
+    --bg3:       #1a1a1a;
+    --border:    #2a2a2a;
+    --text:      #e8e8e8;
+    --muted:     #555;
+    --lime:      #c8f400;
+    --lime-dim:  #8aaa00;
+    --z1: #4fc3f7;
+    --z2: #69f0ae;
+    --z3: #fff176;
+    --z4: #ffa726;
+    --z5: #ef5350;
+    --z6: #b71c1c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 10px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 0.05em;
+    color: var(--lime);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text); }
+
+  .header-right { display: flex; gap: 12px; align-items: center; }
+
+  .icon-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 17px;
+  }
+  .icon-btn:active { background: var(--border); transform: scale(0.95); }
+  .icon-btn.active { border-color: var(--lime); color: var(--lime); }
+
+  /* ── GPS STATUS ── */
+  .gps-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    font-size: 11px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.05em;
+  }
+  .gps-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .gps-dot.active { background: var(--lime); box-shadow: 0 0 6px var(--lime); }
+  .gps-coords { font-size: 10px; opacity: 0.7; margin-left: auto; }
+
+  /* ── MAIN INPUTS ── */
+  .input-section {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .big-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .input-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.2s;
+  }
+  .input-card:focus-within { border-color: var(--lime-dim); }
+
+  .input-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .big-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    width: 100%;
+    line-height: 1;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .big-input::placeholder { color: var(--border); }
+
+  .input-unit {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── INCLINACION STRIP ── */
+  .incl-strip {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .incl-strip .input-label { flex: 0 0 auto; }
+  .incl-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    width: 80px;
+    -webkit-appearance: none;
+  }
+  .incl-strip .input-unit { margin-left: auto; }
+
+  /* ── CALCULATE BUTTON ── */
+  .calc-btn {
+    background: var(--lime);
+    color: #000;
+    border: none;
+    border-radius: 14px;
+    padding: 18px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .calc-btn:active { transform: scale(0.98); background: var(--lime-dim); }
+  .calc-btn.loading { opacity: 0.7; pointer-events: none; }
+  .calc-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 1s infinite;
+  }
+  @keyframes shimmer { to { left: 100%; } }
+
+  /* ── RESULTS ── */
+  #results {
+    display: none;
+    padding: 0 20px 20px;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeUp 0.3s ease;
+  }
+  #results.visible { display: flex; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* HERO PACE CARD */
+  .pace-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pace-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--zone-color, var(--lime));
+    transition: background 0.4s;
+  }
+  .pace-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .pace-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--zone-color, var(--lime));
+    letter-spacing: -0.02em;
+    transition: color 0.4s;
+  }
+  .pace-sub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 10px;
+  }
+  .zona-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--zone-color, var(--lime));
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--zone-color, var(--lime));
+    text-transform: uppercase;
+    transition: all 0.4s;
+  }
+  .zona-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--zone-color, var(--lime));
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.7); }
+  }
+  .hrr-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* MACROS GRID */
+  .macros-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .macro-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .macro-icon { font-size: 18px; line-height: 1; }
+  .macro-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .macro-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .macro-unit { font-size: 10px; color: var(--muted); }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-unit { font-size: 11px; color: var(--muted); }
+
+  /* CLIMA CARD */
+  .clima-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .clima-icon { font-size: 28px; }
+  .clima-data { flex: 1; }
+  .clima-temp {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .clima-detail {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .factor-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .factor-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+  .factor-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--lime);
+  }
+
+  /* ── SETTINGS PANEL ── */
+  #settings-panel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: flex-end;
+  }
+  #settings-panel.open { display: flex; }
+  .settings-sheet {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-height: 85dvh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .settings-handle {
+    width: 40px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .settings-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lime);
+    margin-bottom: 20px;
+  }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-info { flex: 1; }
+  .setting-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .setting-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .setting-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: right;
+    width: 110px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .setting-input:focus { border-color: var(--lime-dim); }
+  select.setting-input {
+    font-size: 14px;
+    padding: 9px 10px;
+    width: 130px;
+    cursor: pointer;
+  }
+  .save-btn {
+    background: var(--lime);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.15s;
+  }
+  .save-btn:active { transform: scale(0.98); }
+
+  /* ── ERROR TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #c0392b;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    z-index: 300;
+    transition: transform 0.3s;
+    max-width: 320px;
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 20px;
+    margin-top: 4px;
+  }
+
+  /* number input arrows hidden */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">EFFORT<span>SPARRING</span></div>
+  <div class="header-right">
+    <button class="icon-btn" id="gps-btn" title="Obtener GPS" onclick="getGPS()">📍</button>
+    <button class="icon-btn" id="settings-btn" onclick="openSettings()">⚙️</button>
+  </div>
+</header>
+
+<!-- GPS BAR -->
+<div class="gps-bar">
+  <div class="gps-dot" id="gps-dot"></div>
+  <span id="gps-status">GPS no activo — clima neutro</span>
+  <span class="gps-coords" id="gps-coords"></span>
+</div>
+
+<!-- INPUTS -->
+<div class="input-section">
+  <div class="big-inputs">
+    <div class="input-card">
+      <div class="input-label">FC Actual</div>
+      <input class="big-input" type="number" id="fc_actual" placeholder="155" inputmode="numeric" min="40" max="220">
+      <div class="input-unit">lpm</div>
+    </div>
+    <div class="input-card">
+      <div class="input-label">Velocidad</div>
+      <input class="big-input" type="number" id="velocidad_kmh" placeholder="8.5" inputmode="decimal" step="0.5" min="1" max="30">
+      <div class="input-unit">km/h</div>
+    </div>
+  </div>
+
+  <div class="incl-strip">
+    <div class="input-label">Inclinación</div>
+    <input class="incl-input" type="number" id="inclinacion" value="1" inputmode="decimal" step="0.5" min="-20" max="45">
+    <div class="input-unit">%</div>
+  </div>
+
+  <button class="calc-btn" id="calc-btn" onclick="calculate()">
+    ⚡ CALCULAR
+  </button>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="section-label">Resultado</div>
+
+  <!-- PACE HERO -->
+  <div class="pace-card" id="pace-card">
+    <div class="pace-label">Pace ajustado</div>
+    <div class="pace-value" id="pace-val">—</div>
+    <div class="pace-sub">
+      <div class="zona-badge" id="zona-badge">
+        <div class="zona-dot" id="zona-dot"></div>
+        <span id="zona-text">—</span>
+      </div>
+      <div class="hrr-val" id="hrr-val">—% HRR</div>
+    </div>
+  </div>
+
+  <!-- MACROS -->
+  <div class="section-label">Macros / hora</div>
+  <div class="macros-grid">
+    <div class="macro-card">
+      <div class="macro-icon">🍚</div>
+      <div class="macro-val" id="carbs-val">—</div>
+      <div class="macro-name">Carbs</div>
+      <div class="macro-unit">g/hora</div>
+    </div>
+    <div class="macro-card">
+      <div class="macro-icon">🥑</div>
+      <div class="macro-val" id="grasas-val">—</div>
+      <div class="macro-name">Grasas</div>
+      <div class="macro-unit">g/hora</div>
+    </div>
+    <div class="macro-card">
+      <div class="macro-icon">🥩</div>
+      <div class="macro-val" id="prot-val">—</div>
+      <div class="macro-name">Proteínas</div>
+      <div class="macro-unit">g/hora</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Calorías</div>
+      <div class="stat-val" id="cal-val">—</div>
+      <div class="stat-unit">kcal/hora</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Hidratación</div>
+      <div class="stat-val" id="agua-val">—</div>
+      <div class="stat-unit">ml/hora</div>
+    </div>
+  </div>
+
+  <!-- CLIMA -->
+  <div class="clima-card" id="clima-card" style="display:none">
+    <div class="clima-icon" id="clima-icon">🌤️</div>
+    <div class="clima-data">
+      <div class="clima-temp" id="clima-temp">—°C</div>
+      <div class="clima-detail" id="clima-detail">—</div>
+    </div>
+    <div class="factor-badge">
+      <div class="factor-label">FACTOR</div>
+      <div class="factor-val" id="factor-val">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel" onclick="handleSettingsOverlay(event)">
+  <div class="settings-sheet">
+    <div class="settings-handle"></div>
+    <div class="settings-title">⚙ Configuración</div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Peso</div>
+        <div class="setting-desc">Peso corporal</div>
+      </div>
+      <input class="setting-input" type="number" id="s-peso" value="87.7" step="0.1" inputmode="decimal"> <span style="font-size:11px;color:var(--muted)">kg</span>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">FC Máxima</div>
+        <div class="setting-desc">Frecuencia cardíaca máxima</div>
+      </div>
+      <input class="setting-input" type="number" id="s-fc-max" value="178" inputmode="numeric"> <span style="font-size:11px;color:var(--muted)">lpm</span>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">FC Reposo</div>
+        <div class="setting-desc">Frecuencia en reposo</div>
+      </div>
+      <input class="setting-input" type="number" id="s-fc-rep" value="51" inputmode="numeric"> <span style="font-size:11px;color:var(--muted)">lpm</span>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Pace Objetivo</div>
+        <div class="setting-desc">Formato MM:SS</div>
+      </div>
+      <input class="setting-input" type="text" id="s-pace" value="5:30" placeholder="5:30" style="width:90px">
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Superficie</div>
+        <div class="setting-desc">Tipo de terreno</div>
+      </div>
+      <select class="setting-input" id="s-superficie">
+        <option value="road">Calle</option>
+        <option value="treadmill" selected>Banda</option>
+        <option value="trail">Trail</option>
+        <option value="track">Pista</option>
+        <option value="grass">Pasto</option>
+        <option value="sand">Arena</option>
+      </select>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">✓ Guardar configuración</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+let gpsLat = null, gpsLng = null;
+
+const ZONE_COLORS = {
+  '1': 'var(--z1)', '2': 'var(--z2)', '3': 'var(--z3)',
+  '4': 'var(--z4)', '5': 'var(--z5)', '6': 'var(--z6)'
+};
+
+// ── SETTINGS ───────────────────────────────────────────
+function loadSettings() {
+  const d = JSON.parse(localStorage.getItem('es-settings') || '{}');
+  if (d.peso)       document.getElementById('s-peso').value = d.peso;
+  if (d.fcMax)      document.getElementById('s-fc-max').value = d.fcMax;
+  if (d.fcRep)      document.getElementById('s-fc-rep').value = d.fcRep;
+  if (d.pace)       document.getElementById('s-pace').value = d.pace;
+  if (d.superficie) document.getElementById('s-superficie').value = d.superficie;
+}
+
+function saveSettings() {
+  const s = {
+    peso:       document.getElementById('s-peso').value,
+    fcMax:      document.getElementById('s-fc-max').value,
+    fcRep:      document.getElementById('s-fc-rep').value,
+    pace:       document.getElementById('s-pace').value,
+    superficie: document.getElementById('s-superficie').value,
+  };
+  localStorage.setItem('es-settings', JSON.stringify(s));
+  closeSettings();
+  showToast('✓ Configuración guardada', 'ok');
+}
+
+function getSettings() {
+  const d = JSON.parse(localStorage.getItem('es-settings') || '{}');
+  return {
+    peso:       parseFloat(d.peso || 87.7),
+    fcMax:      parseFloat(d.fcMax || 178),
+    fcRep:      parseFloat(d.fcRep || 51),
+    pace:       paceToSeconds(d.pace || '5:30'),
+    superficie: d.superficie || 'treadmill',
+  };
+}
+
+function paceToSeconds(str) {
+  const parts = str.split(':');
+  if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  return 330;
+}
+
+// ── GPS ────────────────────────────────────────────────
+function getGPS() {
+  if (!navigator.geolocation) { showToast('GPS no disponible en este dispositivo'); return; }
+  document.getElementById('gps-btn').textContent = '⏳';
+  document.getElementById('gps-status').textContent = 'Obteniendo ubicación…';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      gpsLat = pos.coords.latitude;
+      gpsLng = pos.coords.longitude;
+      document.getElementById('gps-dot').classList.add('active');
+      document.getElementById('gps-btn').textContent = '📍';
+      document.getElementById('gps-btn').classList.add('active');
+      document.getElementById('gps-status').textContent = 'GPS activo — clima en vivo';
+      document.getElementById('gps-coords').textContent =
+        `${gpsLat.toFixed(4)}, ${gpsLng.toFixed(4)}`;
+    },
+    err => {
+      document.getElementById('gps-btn').textContent = '📍';
+      document.getElementById('gps-status').textContent = 'GPS no disponible — clima neutro';
+      showToast('No se pudo obtener GPS. Se usará clima neutro.');
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+// ── CALCULATE ──────────────────────────────────────────
+async function calculate() {
+  const fcActual  = parseFloat(document.getElementById('fc_actual').value);
+  const velKmh    = parseFloat(document.getElementById('velocidad_kmh').value);
+  const incl      = parseFloat(document.getElementById('inclinacion').value || 0);
+
+  if (!fcActual || fcActual < 40 || fcActual > 220) {
+    showToast('Ingresá tu FC actual (40–220 lpm)'); return;
+  }
+  if (!velKmh || velKmh < 1 || velKmh > 30) {
+    showToast('Ingresá la velocidad (1–30 km/h)'); return;
+  }
+
+  const s = getSettings();
+  if (fcActual >= s.fcMax) {
+    showToast(`FC actual (${fcActual}) ≥ FC máxima (${s.fcMax}). Revisá tu configuración.`); return;
+  }
+
+  const btn = document.getElementById('calc-btn');
+  btn.classList.add('loading');
+  btn.textContent = '⏳ CALCULANDO…';
+
+  const payload = {
+    velocidad:     velKmh / 3.6,
+    inclinacion:   incl,
+    peso:          s.peso,
+    pace_objetivo: s.pace,
+    fc_actual:     fcActual,
+    fc_max:        s.fcMax,
+    fc_reposo:     s.fcRep,
+    superficie:    s.superficie,
+  };
+  if (gpsLat !== null) { payload.lat = gpsLat; payload.lng = gpsLng; }
+
+  try {
+    const res = await fetch('/segment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail ? JSON.stringify(err.detail) : `Error ${res.status}`);
+    }
+    const d = await res.json();
+    renderResults(d);
+  } catch (e) {
+    showToast('Error al calcular: ' + (e.message || 'Sin conexión'));
+  } finally {
+    btn.classList.remove('loading');
+    btn.textContent = '⚡ CALCULAR';
+  }
+}
+
+function renderResults(d) {
+  // Zone color
+  const zNum = (d.zona_fc.match(/\d/) || ['4'])[0];
+  const zColor = ZONE_COLORS[zNum] || 'var(--lime)';
+  document.documentElement.style.setProperty('--zone-color', zColor);
+
+  // Pace
+  document.getElementById('pace-val').textContent = d.pace_ajustado_str;
+  document.getElementById('zona-text').textContent = d.zona_fc;
+  document.getElementById('hrr-val').textContent = `${d.hrr_pct}% HRR`;
+
+  // Macros
+  document.getElementById('carbs-val').textContent = Math.round(d.carbs_hora);
+  document.getElementById('grasas-val').textContent = Math.round(d.grasas_hora);
+  document.getElementById('prot-val').textContent = Math.round(d.proteinas_hora);
+
+  // Stats
+  document.getElementById('cal-val').textContent = Math.round(d.calorias_hora);
+  document.getElementById('agua-val').textContent = Math.round(d.hidratacion_hora);
+
+  // Clima
+  if (d.weather_used) {
+    const w = d.weather_used;
+    document.getElementById('clima-card').style.display = 'flex';
+    document.getElementById('clima-icon').textContent =
+      w.precipitation_mm > 0.2 ? '🌧️' : w.temperature_c > 28 ? '☀️' : '🌤️';
+    document.getElementById('clima-temp').textContent =
+      `${w.temperature_c}°C  ${w.humidity_pct}%💧`;
+    document.getElementById('clima-detail').textContent =
+      d.elevation_m ? `Elevación: ${d.elevation_m} m s.n.m.` : 'Clima en tiempo real';
+    document.getElementById('factor-val').textContent = `×${d.factor_combinado.toFixed(2)}`;
+  } else {
+    document.getElementById('clima-card').style.display = 'none';
+  }
+
+  // Show results
+  const r = document.getElementById('results');
+  r.classList.add('visible');
+  r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── SETTINGS PANEL ─────────────────────────────────────
+function openSettings() { document.getElementById('settings-panel').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-panel').classList.remove('open'); }
+function handleSettingsOverlay(e) {
+  if (e.target === document.getElementById('settings-panel')) closeSettings();
+}
+
+// ── TOAST ──────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'ok' ? '#2e7d32' : '#c0392b';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── ENTER KEY ──────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') calculate();
+});
+
+// ── INIT ───────────────────────────────────────────────
+loadSettings();
+</script>
+</body>
+</html>
