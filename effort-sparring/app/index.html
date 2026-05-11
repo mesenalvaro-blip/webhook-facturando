@@ -333,6 +333,7 @@
     color: var(--muted);
   }
   .macro-unit { font-size: 10px; color: var(--muted); }
+  .macro-sub  { font-size: 9px; color: var(--muted); margin-top: 2px; }
 
   /* STATS ROW */
   .stats-row {
@@ -603,8 +604,9 @@
     <div class="macro-card">
       <div class="macro-icon">🍚</div>
       <div class="macro-val" id="carbs-val">—</div>
-      <div class="macro-name">Carbs</div>
-      <div class="macro-unit">g/hora</div>
+      <div class="macro-name">Ingerir</div>
+      <div class="macro-unit">g carbs/hora</div>
+      <div class="macro-sub" id="carbs-ox-sub"></div>
     </div>
     <div class="macro-card">
       <div class="macro-icon">🥑</div>
@@ -848,7 +850,14 @@ function renderResults(d) {
   document.getElementById('hrr-val').textContent = `${d.hrr_pct}% HRR`;
 
   // Macros
-  document.getElementById('carbs-val').textContent = Math.round(d.carbs_hora);
+  document.getElementById('carbs-val').textContent = Math.round(d.ingesta_carbs_hora);
+  // Show oxidation rate as subtitle when it differs from intake
+  const oxSub = document.getElementById('carbs-ox-sub');
+  if (Math.round(d.carbs_hora) > Math.round(d.ingesta_carbs_hora)) {
+    oxSub.textContent = `quema ${Math.round(d.carbs_hora)} g`;
+  } else {
+    oxSub.textContent = '';
+  }
   document.getElementById('grasas-val').textContent = Math.round(d.grasas_hora);
   document.getElementById('prot-val').textContent = Math.round(d.proteinas_hora);
 
