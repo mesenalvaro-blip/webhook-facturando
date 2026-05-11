@@ -220,11 +220,14 @@ def calories_per_km(
     """
     kcal per km. Uses VO2 → caloric equivalent (1 L O2 ≈ 5 kcal),
     scaled by combined load factor.
+    Calibrated +20% vs ACSM base to match Garmin real measurements
+    (Garmin session 11-May-2026: 197 active kcal / 8 min at 8.5 km/h).
     """
     vo2 = estimate_vo2(velocity_ms, grade_pct)          # ml/kg/min
     time_min_per_km = 1000 / (velocity_ms * 60)         # min/km
-    kcal_per_km = (vo2 * peso_kg * time_min_per_km) / 200  # /200 = /1000*5/25
-    return round(kcal_per_km * factor_combinado, 1)
+    kcal_per_km = (vo2 * peso_kg * time_min_per_km) / 200
+    calibration = 1.20   # +20% to match Garmin real data
+    return round(kcal_per_km * factor_combinado * calibration, 1)
 
 
 def macros_per_hour(zona_fc: str, kcal_per_km: float, pace_s_km: float) -> tuple:
@@ -248,14 +251,15 @@ def hydration_per_hour(
 ) -> float:
     """
     ml fluid/hour — Sawka model simplified.
-    Base: 400 ml/h + weight factor + heat + intensity.
+    Calibrated downward 20% to match Garmin sweat-loss estimates
+    (Garmin session 11-May-2026: 333 ml / 20 min active = ~1000 ml/h).
     """
-    base = 400
-    weight_factor = 4.0 * peso_kg        # heavier → more sweat
-    heat_factor = max(0, (temp_c - 15) * 15)
-    intensity_factor = hrr_pct * 200
+    base = 300
+    weight_factor = 3.0 * peso_kg        # heavier → more sweat
+    heat_factor = max(0, (temp_c - 15) * 12)
+    intensity_factor = hrr_pct * 150
     total = base + weight_factor + heat_factor + intensity_factor
-    return round(min(total, 1800), 0)    # cap at 1.8 L/h
+    return round(min(total, 1500), 0)    # cap at 1.5 L/h
 
 
 def seconds_to_pace(total_seconds: float) -> str:
