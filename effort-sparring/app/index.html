@@ -535,6 +535,151 @@
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type=number] { -moz-appearance: textfield; }
+
+  /* ── SAVE SESSION BUTTON ── */
+  .save-session-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 12px;
+    padding: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .save-session-btn:active { transform: scale(0.98); }
+  .save-session-btn.saved {
+    border-color: var(--z2);
+    color: var(--z2);
+    pointer-events: none;
+  }
+
+  /* ── HISTORY PANEL ── */
+  #history-panel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: flex-end;
+  }
+  #history-panel.open { display: flex; }
+  .history-sheet {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-height: 88dvh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  .history-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lime);
+    margin-bottom: 16px;
+  }
+  .hist-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 40px 0;
+  }
+  .hist-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hist-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--item-zone-color, var(--muted));
+  }
+  .hist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    padding-left: 10px;
+  }
+  .hist-date {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .hist-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 2px;
+  }
+  .hist-pace {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--item-zone-color, var(--text));
+    line-height: 1;
+  }
+  .hist-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hist-zona {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--item-zone-color, var(--muted));
+    text-transform: uppercase;
+    border: 1px solid var(--item-zone-color, var(--muted));
+    border-radius: 20px;
+    padding: 3px 10px;
+    display: inline-block;
+  }
+  .hist-stats {
+    display: flex;
+    gap: 14px;
+  }
+  .hist-stat {
+    text-align: right;
+  }
+  .hist-stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .hist-stat-lbl {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
@@ -544,6 +689,7 @@
   <div class="logo">EFFORT<span>SPARRING</span></div>
   <div class="header-right">
     <button class="icon-btn" id="gps-btn" title="Obtener GPS" onclick="getGPS()">📍</button>
+    <button class="icon-btn" id="history-btn" title="Historial" onclick="openHistory()">🕐</button>
     <button class="icon-btn" id="settings-btn" onclick="openSettings()">⚙️</button>
   </div>
 </header>
@@ -648,6 +794,20 @@
       <div class="factor-val" id="factor-val">—</div>
     </div>
   </div>
+
+  <!-- SAVE BUTTON -->
+  <button class="save-session-btn" id="save-btn" onclick="saveSession()">
+    💾 GUARDAR SESIÓN
+  </button>
+</div>
+
+<!-- HISTORY PANEL -->
+<div id="history-panel" onclick="handleHistoryOverlay(event)">
+  <div class="history-sheet">
+    <div class="settings-handle"></div>
+    <div class="history-title">🕐 Historial</div>
+    <div id="history-list"><div class="hist-empty">Cargando…</div></div>
+  </div>
 </div>
 
 <!-- SETTINGS PANEL -->
@@ -713,6 +873,8 @@
 <script>
 // ── STATE ──────────────────────────────────────────────
 let gpsLat = null, gpsLng = null;
+let lastResult = null;   // stores last API response for saving
+let lastInputs  = null;  // stores last inputs for saving
 
 const ZONE_COLORS = {
   '1': 'var(--z1)', '2': 'var(--z2)', '3': 'var(--z3)',
@@ -829,6 +991,8 @@ async function calculate() {
       throw new Error(err.detail ? JSON.stringify(err.detail) : `Error ${res.status}`);
     }
     const d = await res.json();
+    lastResult = d;
+    lastInputs = { fc_actual: fcActual, velocidad_kmh: velKmh, inclinacion: incl };
     renderResults(d);
   } catch (e) {
     showToast('Error al calcular: ' + (e.message || 'Sin conexión'));
@@ -880,10 +1044,129 @@ function renderResults(d) {
     document.getElementById('clima-card').style.display = 'none';
   }
 
+  // Reset save button
+  const sb = document.getElementById('save-btn');
+  sb.classList.remove('saved');
+  sb.innerHTML = '💾 GUARDAR SESIÓN';
+
   // Show results
   const r = document.getElementById('results');
   r.classList.add('visible');
   r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── SAVE SESSION ───────────────────────────────────────
+async function saveSession() {
+  if (!lastResult) { showToast('Calculá primero antes de guardar'); return; }
+
+  const now  = new Date();
+  const name = `Entrenamiento ${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  const segment = { ...lastResult, ...lastInputs, timestamp: now.toISOString() };
+  const summary = {
+    pace:            lastResult.pace_ajustado_str,
+    zona:            lastResult.zona_fc,
+    hrr_pct:         lastResult.hrr_pct,
+    kcal_hora:       lastResult.calorias_hora,
+    hidratacion_hora:lastResult.hidratacion_hora,
+    carbs_ingesta:   lastResult.ingesta_carbs_hora,
+  };
+
+  const btn = document.getElementById('save-btn');
+  btn.innerHTML = '⏳ GUARDANDO…';
+
+  try {
+    const res = await fetch('/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, segments: [segment], summary })
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    btn.classList.add('saved');
+    btn.innerHTML = '✓ SESIÓN GUARDADA';
+    showToast('✓ Sesión guardada correctamente', 'ok');
+  } catch (e) {
+    btn.innerHTML = '💾 GUARDAR SESIÓN';
+    showToast('Error al guardar: ' + e.message);
+  }
+}
+
+// ── HISTORY PANEL ──────────────────────────────────────
+const ZONE_COLORS_MAP = {
+  '1': '#4fc3f7', '2': '#69f0ae', '3': '#fff176',
+  '4': '#ffa726', '5': '#ef5350', '6': '#b71c1c'
+};
+
+async function openHistory() {
+  document.getElementById('history-panel').classList.add('open');
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="hist-empty">Cargando…</div>';
+  try {
+    const res = await fetch('/sessions');
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const sessions = await res.json();
+    renderHistory(sessions);
+  } catch (e) {
+    list.innerHTML = `<div class="hist-empty">No se pudo cargar el historial</div>`;
+  }
+}
+
+function closeHistory() { document.getElementById('history-panel').classList.remove('open'); }
+function handleHistoryOverlay(e) {
+  if (e.target === document.getElementById('history-panel')) closeHistory();
+}
+
+function renderHistory(sessions) {
+  const list = document.getElementById('history-list');
+  if (!sessions || sessions.length === 0) {
+    list.innerHTML = '<div class="hist-empty">No hay sesiones guardadas todavía.<br>Calculá y guardá tu primera sesión.</div>';
+    return;
+  }
+
+  list.innerHTML = sessions.slice(0, 10).map(s => {
+    const sum    = s.summary || {};
+    const zona   = sum.zona || '—';
+    const zNum   = (zona.match(/\d/) || ['0'])[0];
+    const zColor = ZONE_COLORS_MAP[zNum] || '#555';
+    const pace   = sum.pace || '—';
+    const kcal   = sum.kcal_hora ? Math.round(sum.kcal_hora) : '—';
+    const agua   = sum.hidratacion_hora ? Math.round(sum.hidratacion_hora) : '—';
+    const hrr    = sum.hrr_pct !== undefined ? `${sum.hrr_pct}%` : '—';
+
+    // Format date from created_at
+    let dateStr = s.name || s.created_at || '—';
+    if (s.created_at && !s.name) {
+      const d = new Date(s.created_at);
+      dateStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
+    }
+
+    return `
+    <div class="hist-item" style="--item-zone-color:${zColor}">
+      <div class="hist-header">
+        <div>
+          <div class="hist-date">${dateStr}</div>
+        </div>
+        <div class="hist-pace">${pace}</div>
+      </div>
+      <div class="hist-body">
+        <span class="hist-zona">${zona}</span>
+        <div class="hist-stats">
+          <div class="hist-stat">
+            <div class="hist-stat-val">${kcal}</div>
+            <div class="hist-stat-lbl">kcal/h</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-stat-val">${agua}</div>
+            <div class="hist-stat-lbl">ml/h</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-stat-val">${hrr}</div>
+            <div class="hist-stat-lbl">HRR</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── SETTINGS PANEL ─────────────────────────────────────
