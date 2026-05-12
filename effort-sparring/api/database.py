@@ -65,8 +65,16 @@ async def list_sessions(limit: int = 20) -> list:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, created_at, name FROM sessions ORDER BY created_at DESC LIMIT ?",
+            "SELECT id, created_at, name, summary FROM sessions ORDER BY created_at DESC LIMIT ?",
             (limit,),
         ) as cursor:
             rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
+            return [
+                {
+                    "id":         r["id"],
+                    "created_at": r["created_at"],
+                    "name":       r["name"],
+                    "summary":    json.loads(r["summary"]) if r["summary"] else None,
+                }
+                for r in rows
+            ]
