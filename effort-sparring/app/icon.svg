@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Dark background -->
+  <rect width="512" height="512" fill="#080808"/>
+  <!-- Lime top bar -->
+  <rect x="0" y="0" width="512" height="14" fill="#c8f400"/>
+  <!-- Lightning bolt -->
+  <polygon points="318,55 158,278 252,278 174,464 372,238 268,238 346,55" fill="#c8f400"/>
+</svg>

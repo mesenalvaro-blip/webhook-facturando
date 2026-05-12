@@ -1,0 +1,18 @@
+{
+  "name": "Effort Sparring",
+  "short_name": "EffortSpar",
+  "description": "Motor de pace ajustado por esfuerzo real para corredores",
+  "start_url": "/app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080808",
+  "theme_color": "#c8f400",
+  "icons": [
+    {
+      "src": "/app/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
