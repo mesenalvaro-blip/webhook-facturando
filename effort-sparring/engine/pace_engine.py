@@ -216,19 +216,19 @@ def calories_per_km(
     peso_kg: float,
     velocity_ms: float,
     grade_pct: float,
-    factor_combinado: float,
+    factor_terreno: float,
 ) -> float:
     """
-    kcal per km. Uses VO2 → caloric equivalent (1 L O2 ≈ 5 kcal),
-    scaled by combined load factor.
-    Calibrated +20% vs ACSM base to match Garmin real measurements
-    (Garmin session 11-May-2026: 197 active kcal / 8 min at 8.5 km/h).
+    kcal per km. Uses ACSM VO2 equation → caloric equivalent (1 L O2 ≈ 5 kcal).
+    Only terrain factors (slope × surface × climate) are applied — NOT the HR
+    factor, because HR reflects cardiovascular load, not mechanical energy cost
+    per km at a given speed.
+    Velocity used is the actual running speed (not the adjusted/recommended pace).
     """
     vo2 = estimate_vo2(velocity_ms, grade_pct)          # ml/kg/min
     time_min_per_km = 1000 / (velocity_ms * 60)         # min/km
     kcal_per_km = (vo2 * peso_kg * time_min_per_km) / 200
-    calibration = 1.20   # +20% to match Garmin real data
-    return round(kcal_per_km * factor_combinado * calibration, 1)
+    return round(kcal_per_km * factor_terreno, 1)
 
 
 def macros_per_hour(zona_fc: str, kcal_per_km: float, pace_s_km: float) -> tuple:
@@ -306,6 +306,10 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
 
     factor_combinado = f_fc * f_pendiente * f_superficie * f_clima
 
+    # Terrain-only factor for caloric cost:
+    # HR affects pace but NOT energy cost per km at a given speed
+    factor_terreno = f_pendiente * f_superficie * f_clima
+
     # Adjusted pace (s/km) — higher factor = slower pace
     pace_ajustado = inp.pace_objetivo_s_km * factor_combinado
     pace_ajustado = max(120, min(pace_ajustado, 900))    # 2:00–15:00 /km
@@ -316,8 +320,11 @@ def calculate_segment(inp: SegmentInput) -> SegmentOutput:
     # Physiological outputs
     hrr = hrr_percent(inp.fc_actual, inp.fc_max, inp.fc_reposo)
     zona = hr_zone(hrr)
-    kcal = calories_per_km(inp.peso_kg, v_ajustada, grade, factor_combinado)
-    carbs, fat, protein, kcal_hora = macros_per_hour(zona, kcal, pace_ajustado)
+
+    # Calories: use actual running speed + terrain-only factor
+    actual_pace_s_km = 1000 / inp.velocidad_ms
+    kcal = calories_per_km(inp.peso_kg, inp.velocidad_ms, grade, factor_terreno)
+    carbs, fat, protein, kcal_hora = macros_per_hour(zona, kcal, actual_pace_s_km)
     ingesta_carbs = recommended_carb_intake(carbs, hrr)
     hidra = hydration_per_hour(inp.peso_kg, inp.weather.apparent_temp_c, hrr)
 
